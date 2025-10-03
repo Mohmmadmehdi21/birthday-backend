@@ -9,10 +9,7 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ✅ Allow only your frontend domain
-app.use(cors({
-  origin: "https://bqwsew.tiiny.site"
-}));
+app.use(cors());
 app.use(express.json());
 
 // ===============================
@@ -54,8 +51,8 @@ const transporter = nodemailer.createTransport({
   host: "smtp.sendgrid.net",
   port: 587,
   auth: {
-    user: "apikey",
-    pass: process.env.SENDGRID_API_KEY
+    user: "apikey", // SendGrid always requires literal string "apikey"
+    pass: process.env.SENDGRID_API_KEY // ✅ Your SendGrid API Key from env
   }
 });
 
@@ -83,7 +80,7 @@ app.post('/submit-wish', async (req, res) => {
 
     // Send Email Notification (via SendGrid)
     const info = await transporter.sendMail({
-      from: "birthdayapiwishsender@yourdomain.com", 
+      from: "birthdayapiwishsender@yourdomain.com", // ✅ Sender (use a verified sender domain in SendGrid)
       to: process.env.EMAIL_TO || "mohmmadmehdi44@gmail.com",
       subject: "🎉 Birthday Wish Submitted!",
       text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
