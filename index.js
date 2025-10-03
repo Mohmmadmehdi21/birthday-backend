@@ -1,4 +1,4 @@
-// server.js - Integration with Google Sheets + Email Notification (Env Vars Version)
+// index.js - Integration with Google Sheets + Email Notification (Render Safe)
 
 const express = require('express');
 const { google } = require('googleapis');
@@ -10,29 +10,46 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors()); // For production: app.use(cors({ origin: "https://your-frontend.tinyhost.com" }));
+app.use(cors()); 
 app.use(express.json());
 
 // ===============================
 // 0. Write credentials/token from env to files (if not present)
 // ===============================
 if (!fs.existsSync('credentials.json') && process.env.CREDENTIALS_JSON) {
-  fs.writeFileSync('credentials.json', process.env.CREDENTIALS_JSON);
+  try {
+    // Replace \n with actual newlines in case JSON was stringified badly
+    const creds = process.env.CREDENTIALS_JSON.replace(/\\n/g, '\n');
+    fs.writeFileSync('credentials.json', creds);
+  } catch (err) {
+    console.error("❌ Failed to write credentials.json:", err);
+  }
 }
+
 if (!fs.existsSync('token.json') && process.env.TOKEN_JSON) {
-  fs.writeFileSync('token.json', process.env.TOKEN_JSON);
+  try {
+    const token = process.env.TOKEN_JSON.replace(/\\n/g, '\n');
+    fs.writeFileSync('token.json', token);
+  } catch (err) {
+    console.error("❌ Failed to write token.json:", err);
+  }
 }
 
 // ===============================
 // 1. Google Sheets API Setup
 // ===============================
-const CREDENTIALS = JSON.parse(fs.readFileSync('credentials.json'));
-const TOKEN = JSON.parse(fs.readFileSync('token.json'));
+let CREDENTIALS, TOKEN;
+try {
+  CREDENTIALS = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
+  TOKEN = JSON.parse(fs.readFileSync('token.json', 'utf8'));
+} catch (err) {
+  console.error("❌ Error reading credentials/token files:", err);
+}
 
 const auth = new google.auth.OAuth2(
-  CREDENTIALS.installed.client_id,
-  CREDENTIALS.installed.client_secret,
-  CREDENTIALS.installed.redirect_uris[0]
+  CREDENTIALS?.installed?.client_id,
+  CREDENTIALS?.installed?.client_secret,
+  CREDENTIALS?.installed?.redirect_uris[0]
 );
 auth.setCredentials(TOKEN);
 
@@ -88,7 +105,7 @@ app.post('/submit-wish', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Error in /submit-wish:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error.',
@@ -98,15 +115,7 @@ app.post('/submit-wish', async (req, res) => {
 });
 
 // ===============================
-// 4. (Optional) Serve frontend if needed
-// ===============================
-// app.use(express.static(path.join(__dirname, 'public')));
-// app.get('/', (req, res) => {
-//   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-// });
-
-// ===============================
-// 5. Start the server
+// 4. Start the server
 // ===============================
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
