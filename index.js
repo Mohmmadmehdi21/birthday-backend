@@ -1,4 +1,4 @@
-// index.js - Integration with Google Sheets + Email Notification (Render Safe)
+// index.js - Integration with Google Sheets + Email Notification (Render Safe + Logging)
 
 const express = require('express');
 const { google } = require('googleapis');
@@ -18,9 +18,9 @@ app.use(express.json());
 // ===============================
 if (!fs.existsSync('credentials.json') && process.env.CREDENTIALS_JSON) {
   try {
-    // Replace \n with actual newlines in case JSON was stringified badly
     const creds = process.env.CREDENTIALS_JSON.replace(/\\n/g, '\n');
     fs.writeFileSync('credentials.json', creds);
+    console.log("✅ credentials.json written from ENV");
   } catch (err) {
     console.error("❌ Failed to write credentials.json:", err);
   }
@@ -30,6 +30,7 @@ if (!fs.existsSync('token.json') && process.env.TOKEN_JSON) {
   try {
     const token = process.env.TOKEN_JSON.replace(/\\n/g, '\n');
     fs.writeFileSync('token.json', token);
+    console.log("✅ token.json written from ENV");
   } catch (err) {
     console.error("❌ Failed to write token.json:", err);
   }
@@ -65,7 +66,9 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER,   // Gmail ID from env
     pass: process.env.EMAIL_PASS    // Gmail App Password from env
-  }
+  },
+  logger: true,   // ✅ Extra logs
+  debug: true     // ✅ SMTP Debug
 });
 
 // ===============================
@@ -78,7 +81,7 @@ app.post('/submit-wish', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Wish content is missing.' });
     }
 
-    console.log(`Received wish: "${wish}"`);
+    console.log(`📩 Received wish: "${wish}"`);
 
     // Save to Google Sheet
     const values = [[new Date().toISOString(), wish]];
@@ -90,14 +93,17 @@ app.post('/submit-wish', async (req, res) => {
       valueInputOption: 'RAW',
       resource,
     });
+    console.log("✅ Wish saved to Google Sheet");
 
     // Send Email Notification
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
       subject: '🎉 Birthday Wish Submitted!',
       text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
     });
+
+    console.log("📨 Email send attempt:", info);
 
     res.status(200).json({
       success: true,
