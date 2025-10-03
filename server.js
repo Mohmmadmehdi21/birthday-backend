@@ -1,4 +1,4 @@
-// server.js - Integration with Google Sheets + Email Notification (Final Version)
+// server.js - Integration with Google Sheets + Email Notification (Env Vars Version)
 
 const express = require('express');
 const { google } = require('googleapis');
@@ -14,6 +14,16 @@ app.use(cors()); // For production: app.use(cors({ origin: "https://your-fronten
 app.use(express.json());
 
 // ===============================
+// 0. Write credentials/token from env to files (if not present)
+// ===============================
+if (!fs.existsSync('credentials.json') && process.env.CREDENTIALS_JSON) {
+  fs.writeFileSync('credentials.json', process.env.CREDENTIALS_JSON);
+}
+if (!fs.existsSync('token.json') && process.env.TOKEN_JSON) {
+  fs.writeFileSync('token.json', process.env.TOKEN_JSON);
+}
+
+// ===============================
 // 1. Google Sheets API Setup
 // ===============================
 const CREDENTIALS = JSON.parse(fs.readFileSync('credentials.json'));
@@ -27,8 +37,8 @@ const auth = new google.auth.OAuth2(
 auth.setCredentials(TOKEN);
 
 const sheets = google.sheets({ version: 'v4', auth });
-const SPREADSHEET_ID = '1Df-jxPcd54-17ML4iWrbQUaZHshRSeSBHkNmZzskeC4';
-const SHEET_NAME = 'Sheet1';
+const SPREADSHEET_ID = process.env.SHEET_ID || '1Df-jxPcd54-17ML4iWrbQUaZHshRSeSBHkNmZzskeC4';
+const SHEET_NAME = process.env.SHEET_NAME || 'Sheet1';
 
 // ===============================
 // 2. Nodemailer Transporter Setup
@@ -36,8 +46,8 @@ const SHEET_NAME = 'Sheet1';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'aikingdarkai14@gmail.com',   // ✅ Gmail ID
-    pass: 'glfb nkcl xvgb vmbp'         // ✅ Gmail App Password
+    user: process.env.EMAIL_USER,   // Gmail ID from env
+    pass: process.env.EMAIL_PASS    // Gmail App Password from env
   }
 });
 
@@ -66,8 +76,8 @@ app.post('/submit-wish', async (req, res) => {
 
     // Send Email Notification
     await transporter.sendMail({
-      from: 'aikingdarkai14@gmail.com',
-      to: 'mohmmadmehdi44@gmail.com',
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
       subject: '🎉 Birthday Wish Submitted!',
       text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
     });
