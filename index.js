@@ -1,16 +1,15 @@
-// index.js - Integration with Google Sheets + Email Notification (Render Safe + Logging)
+// index.js - Integration with Google Sheets + Email Notification (Render Safe + Full Logs)
 
 const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors()); 
+app.use(cors());
 app.use(express.json());
 
 // ===============================
@@ -64,11 +63,11 @@ const SHEET_NAME = process.env.SHEET_NAME || 'Sheet1';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,   // Gmail ID from env
-    pass: process.env.EMAIL_PASS    // Gmail App Password from env
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   },
-  logger: true,   // ✅ Extra logs
-  debug: true     // ✅ SMTP Debug
+  logger: true,
+  debug: true
 });
 
 // ===============================
@@ -95,19 +94,26 @@ app.post('/submit-wish', async (req, res) => {
     });
     console.log("✅ Wish saved to Google Sheet");
 
-    // Send Email Notification
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
-      subject: '🎉 Birthday Wish Submitted!',
-      text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
-    });
+    // Send Email Notification with detailed logging
+    try {
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
+        subject: '🎉 Birthday Wish Submitted!',
+        text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
+      });
 
-    console.log("📨 Email send attempt:", info);
+      console.log("✅ Email accepted by server:", info.accepted);
+      console.log("❌ Email rejected by server:", info.rejected);
+      console.log("🔎 Full email response:", info.response);
+
+    } catch (mailError) {
+      console.error("❌ Mail send failed:", mailError);
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Wish saved to Google Sheets & email sent successfully!'
+      message: 'Wish saved to Google Sheets & email (attempted).'
     });
 
   } catch (error) {
