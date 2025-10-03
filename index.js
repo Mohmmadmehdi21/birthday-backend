@@ -1,10 +1,10 @@
-// index.js - Integration with Google Sheets + Email Notification (Render Safe + Full Logs)
+// index.js - Integration with Google Sheets (Render Safe + Clean Logs)
 
 const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
 const fs = require('fs');
-const nodemailer = require('nodemailer');
+// const nodemailer = require('nodemailer'); // REMOVED: Nodemailer dependency
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -62,18 +62,10 @@ if (CREDENTIALS && TOKEN) {
 
 
 // ===============================
-// 2. Nodemailer Transporter Setup
+// 2. Transporter Setup (REMOVED)
 // ===============================
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    logger: true,
-    debug: true
-});
-console.log("✅ Nodemailer transporter configured.");
+// REMOVED: Nodemailer transporter code
+
 
 // ===============================
 // 3. API Endpoint
@@ -105,29 +97,13 @@ app.post('/submit-wish', async (req, res) => {
         });
         console.log("✅ Wish successfully saved to Google Sheet");
 
-        // --- 2. Send Email Notification (Secondary Action) ---
-        // We use a separate try/catch block so a mail error does not prevent the
-        // success response for the Sheet save.
-        try {
-            const info = await transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
-                subject: '🎉 Birthday Wish Submitted!',
-                text: `Wish: ${wish}\nTime: ${timestamp}`
-            });
-
-            console.log("✅ Email accepted by server:", info.accepted);
-            console.log("❌ Email rejected by server:", info.rejected);
-            console.log("🔎 Full email response:", info.response);
-
-        } catch (mailError) {
-            console.error("❌ Mail send failed:", mailError.message);
-        }
+        // --- 2. Send Email Notification (REMOVED) ---
+        // REMOVED: Email sending block to eliminate debug logs.
 
         // Send SUCCESS response to the frontend ONLY AFTER the sheet save is successful
         res.status(200).json({
             success: true,
-            message: 'Wish saved to Google Sheets & email (attempted).'
+            message: 'Wish saved to Google Sheets successfully.'
         });
 
     } catch (error) {
