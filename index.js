@@ -1,4 +1,4 @@
-// index.js - Google Sheets + SendGrid Email Notification
+// index.js - Integration with Google Sheets + Email Notification (Render Safe + Full Logs)
 
 const express = require('express');
 const { google } = require('googleapis');
@@ -16,10 +16,23 @@ app.use(express.json());
 // 0. Write credentials/token from env to files (if not present)
 // ===============================
 if (!fs.existsSync('credentials.json') && process.env.CREDENTIALS_JSON) {
-  fs.writeFileSync('credentials.json', process.env.CREDENTIALS_JSON.replace(/\\n/g, '\n'));
+  try {
+    const creds = process.env.CREDENTIALS_JSON.replace(/\\n/g, '\n');
+    fs.writeFileSync('credentials.json', creds);
+    console.log("✅ credentials.json written from ENV");
+  } catch (err) {
+    console.error("❌ Failed to write credentials.json:", err);
+  }
 }
+
 if (!fs.existsSync('token.json') && process.env.TOKEN_JSON) {
-  fs.writeFileSync('token.json', process.env.TOKEN_JSON.replace(/\\n/g, '\n'));
+  try {
+    const token = process.env.TOKEN_JSON.replace(/\\n/g, '\n');
+    fs.writeFileSync('token.json', token);
+    console.log("✅ token.json written from ENV");
+  } catch (err) {
+    console.error("❌ Failed to write token.json:", err);
+  }
 }
 
 // ===============================
@@ -45,15 +58,16 @@ const SPREADSHEET_ID = process.env.SHEET_ID || '1Df-jxPcd54-17ML4iWrbQUaZHshRSeS
 const SHEET_NAME = process.env.SHEET_NAME || 'Sheet1';
 
 // ===============================
-// 2. Nodemailer Transporter (SendGrid)
+// 2. Nodemailer Transporter Setup
 // ===============================
 const transporter = nodemailer.createTransport({
-  host: "smtp.sendgrid.net",
-  port: 587,
+  service: 'gmail',
   auth: {
-    user: "apikey", // SendGrid always requires literal string "apikey"
-    pass: process.env.SENDGRID_API_KEY // ✅ Your SendGrid API Key from env
-  }
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  logger: true,
+  debug: true
 });
 
 // ===============================
@@ -70,27 +84,36 @@ app.post('/submit-wish', async (req, res) => {
 
     // Save to Google Sheet
     const values = [[new Date().toISOString(), wish]];
+    const resource = { values };
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:B`,
       valueInputOption: 'RAW',
-      resource: { values },
+      resource,
     });
     console.log("✅ Wish saved to Google Sheet");
 
-    // Send Email Notification (via SendGrid)
-    const info = await transporter.sendMail({
-      from: "birthdayapiwishsender@yourdomain.com", // ✅ Sender (use a verified sender domain in SendGrid)
-      to: process.env.EMAIL_TO || "mohmmadmehdi44@gmail.com",
-      subject: "🎉 Birthday Wish Submitted!",
-      text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
-    });
+    // Send Email Notification with detailed logging
+    try {
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_TO || 'mohmmadmehdi44@gmail.com',
+        subject: '🎉 Birthday Wish Submitted!',
+        text: `Wish: ${wish}\nTime: ${new Date().toISOString()}`
+      });
 
-    console.log("📨 Email response:", info);
+      console.log("✅ Email accepted by server:", info.accepted);
+      console.log("❌ Email rejected by server:", info.rejected);
+      console.log("🔎 Full email response:", info.response);
+
+    } catch (mailError) {
+      console.error("❌ Mail send failed:", mailError);
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Wish saved to Google Sheets & email sent successfully (SendGrid)!'
+      message: 'Wish saved to Google Sheets & email (attempted).'
     });
 
   } catch (error) {
